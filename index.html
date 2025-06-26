@@ -111,23 +111,23 @@
         }
 
         // 上傳 metadata
-        const metadata = {
-          filename: name,
-          description,
-          uploaded_at: new Date().toISOString()
-        };
+const metadata = {
+  filename: name,
+  description,
+  uploaded_at: new Date().toISOString()
+};
 
-        await fetch(`https://api.github.com/repos/${username}/${repo}/contents/${metadataPath}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            message: `add metadata for ${name}`,
-            content: btoa(JSON.stringify(metadata, null, 2))
-          })
-        });
+await fetch(`https://api.github.com/repos/${username}/${repo}/contents/${metadataPath}`, {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    message: `add metadata for ${name}`,
+    content: btoa(unescape(encodeURIComponent(JSON.stringify(metadata, null, 2))))
+  })
+});
 
         // 顯示結果
         const cdnURL = `https://cdn.jsdelivr.net/gh/${username}/${repo}@${branch}/${path}`;
