@@ -19,7 +19,7 @@
     <a href="#" onclick="clearToken()">🗝 清除 Token</a>
   </div>
 
-  <h1>上傳圖片</h1>
+  <h1>上傳圖片v2</h1>
 
   <div id="tokenInputArea" style="display:none;">
     <label>請輸入 GitHub Token（只會儲存在本機瀏覽器）</label>
@@ -130,7 +130,7 @@ await fetch(`https://api.github.com/repos/${username}/${repo}/contents/${metadat
 });
 
         // 顯示結果
-        const cdnURL = `https://cdn.jsdelivr.net/gh/${username}/${repo}@${branch}/${path}`;
+        const cdnURL = `https://cdn.jsdelivr.net/gh/${username}/${repo}@${branch}/images/${year}/${month}/${name}`;
         document.getElementById('result').innerHTML = `
           <p>圖片上傳成功！</p>
           <div class="urlbox"><strong>Markdown：</strong><br>![](${cdnURL})</div>
@@ -142,4 +142,3 @@ await fetch(`https://api.github.com/repos/${username}/${repo}/contents/${metadat
   </script>
 </body>
 </html>
-
