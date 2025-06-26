@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>las_img 圖片總覽</title>
+  <style>
+    body { font-family: sans-serif; max-width: 900px; margin: auto; padding: 1rem; }
+    input[type="search"] { width: 100%; padding: 0.5rem; margin-bottom: 1rem; font-size: 1rem; }
+    .gallery { display: flex; flex-wrap: wrap; gap: 10px; }
+    .item { width: 150px; cursor: pointer; text-align: center; }
+    .item img { max-width: 100%; border: 1px solid #ccc; border-radius: 4px; }
+    .item .name { font-size: 0.9rem; word-break: break-word; margin-top: 0.3rem; }
+  </style>
+</head>
+<body>
+  <h1>las_img 圖片總覽</h1>
+  <input type="search" id="search" placeholder="搜尋圖片名稱..." oninput="filterImages()" />
+  <div id="gallery" class="gallery"></div>
+
+  <script>
+    const username = 'lasto1302';
+    const repo = 'las_img';
+    const branch = 'main';
+
+    let allImages = [];
+
+    async function fetchImages(path = 'images') {
+      const apiURL = `https://api.github.com/repos/${username}/${repo}/contents/${path}?ref=${branch}`;
+      const res = await fetch(apiURL);
+      if (!res.ok) {
+        alert('無法取得圖片列表，請檢查 Token 或 repo 設定');
+        return [];
+      }
+      const data = await res.json();
+      let images = [];
+      for (const item of data) {
+        if (item.type === 'file' && /\.(png|jpe?g|gif|bmp|webp)$/i.test(item.name)) {
+          images.push(item);
+        } else if (item.type === 'dir') {
+          const subImages = await fetchImages(item.path);
+          images = images.concat(subImages);
+        }
+      }
+      return images;
+    }
+
+    function renderGallery(images) {
+      const gallery = document.getElementById('gallery');
+      gallery.innerHTML = '';
+
+      if (images.length === 0) {
+        gallery.innerHTML = '<p>沒有找到符合條件的圖片</p>';
+        return;
+      }
+
+      for (const img of images) {
+        const cdnURL = `https://cdn.jsdelivr.net/gh/${username}/${repo}@${branch}/${img.path}`;
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.title = img.name;
+        div.innerHTML = `
+          <img src="${cdnURL}" alt="${img.name}" />
+          <div class="name">${img.name}</div>
+        `;
+        div.onclick = () => window.open(cdnURL, '_blank');
+        gallery.appendChild(div);
+      }
+    }
+
+    function filterImages() {
+      const keyword = document.getElementById('search').value.toLowerCase();
+      const filtered = allImages.filter(img => img.name.toLowerCase().includes(keyword));
+      renderGallery(filtered);
+    }
+
+    async function init() {
+      allImages = await fetchImages();
+      renderGallery(allImages);
+    }
+
+    init();
+  </script>
+</body>
+</html>
