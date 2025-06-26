@@ -1,12 +1,145 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="robots" content="noindex, nofollow">
-  <title>微乎其微之渺_img</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="robots" content="noindex, nofollow" />
+  <title>las私人使用</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; max-width: 700px; margin: auto; }
+    label, input, textarea { display: block; margin: 0.5rem 0; width: 100%; }
+    img { max-width: 300px; margin-top: 1rem; border: 1px solid #ccc; }
+    .urlbox { background: #f0f0f0; padding: 0.5rem; word-break: break-all; }
+    .topbar { text-align: right; font-size: 0.9rem; }
+    .token-warning { color: red; font-weight: bold; }
+  </style>
 </head>
 <body>
-  <h1>私人圖 las_img</h1>
-  <p>上傳與管理圖片</p>
+  <div class="topbar">
+    <a href="#" onclick="clearToken()">🗝 清除 Token</a>
+  </div>
+
+  <h1>上傳圖片至 GitHub 圖床</h1>
+
+  <div id="tokenInputArea" style="display:none;">
+    <label>請輸入 GitHub Token（只會儲存在本機瀏覽器）</label>
+    <input type="password" id="tokenInput" />
+    <button onclick="saveToken()">儲存 Token</button>
+  </div>
+
+  <div id="mainApp" style="display:none;">
+    <input type="file" id="file" />
+    <label>自訂檔案名稱（可省略）</label>
+    <input type="text" id="filename" placeholder="不填則使用原始名稱" />
+
+    <label>備註/描述（可省略）</label>
+    <textarea id="desc" placeholder="這張圖片的備註文字..."></textarea>
+
+    <button onclick="upload()">上傳圖片</button>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const username = 'lasto1302';
+    const repo = 'las_img';
+    const branch = 'main';
+
+    // Token 管理
+    const tokenKey = 'github_token';
+    let token = localStorage.getItem(tokenKey);
+
+    function checkToken() {
+      if (!token) {
+        document.getElementById('tokenInputArea').style.display = 'block';
+      } else {
+        document.getElementById('mainApp').style.display = 'block';
+      }
+    }
+
+    function saveToken() {
+      const input = document.getElementById('tokenInput').value.trim();
+      if (!input) return alert('請輸入 Token');
+      localStorage.setItem(tokenKey, input);
+      location.reload();
+    }
+
+    function clearToken() {
+      localStorage.removeItem(tokenKey);
+      location.reload();
+    }
+
+    checkToken();
+
+    async function upload() {
+      const fileInput = document.getElementById('file');
+      const file = fileInput.files[0];
+      if (!file) return alert('請選擇圖片');
+
+      const reader = new FileReader();
+      reader.onload = async function () {
+        const base64 = reader.result.split(',')[1];
+        const filenameInput = document.getElementById('filename').value.trim();
+        const description = document.getElementById('desc').value.trim();
+        const ext = file.name.split('.').pop();
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const name = filenameInput || file.name;
+        const path = `images/${year}/${month}/${name}`;
+        const metadataPath = `metadata/${year}/${month}/${name}.json`;
+        const token = localStorage.getItem(tokenKey);
+
+        if (!token) return alert("Token 遺失，請重新輸入");
+
+        // 上傳圖片
+        const uploadImage = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/${path}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: `upload ${name}`,
+            content: base64
+          })
+        });
+
+        if (!uploadImage.ok) {
+          alert('圖片上傳失敗，請檢查權限與 Token');
+          return;
+        }
+
+        // 上傳 metadata
+        const metadata = {
+          filename: name,
+          description,
+          uploaded_at: new Date().toISOString()
+        };
+
+        await fetch(`https://api.github.com/repos/${username}/${repo}/contents/${metadataPath}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: `add metadata for ${name}`,
+            content: btoa(JSON.stringify(metadata, null, 2))
+          })
+        });
+
+        // 顯示結果
+        const cdnURL = `https://cdn.jsdelivr.net/gh/${username}/${repo}@${branch}/${path}`;
+        document.getElementById('result').innerHTML = `
+          <p>圖片上傳成功！</p>
+          <div class="urlbox"><strong>Markdown：</strong><br>![](${cdnURL})</div>
+          <img src="${cdnURL}" />
+        `;
+      };
+      reader.readAsDataURL(file);
+    }
+  </script>
 </body>
 </html>
+
