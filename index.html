@@ -19,7 +19,7 @@
     <a href="#" onclick="clearToken()">🗝 清除 Token</a>
   </div>
 
-  <h1>上傳圖片v2</h1>
+  <h1>上傳圖片v3</h1>
 
   <div id="tokenInputArea" style="display:none;">
     <label>請輸入 GitHub Token（只會儲存在本機瀏覽器）</label>
@@ -71,74 +71,85 @@
 
     checkToken();
 
-    async function upload() {
-      const fileInput = document.getElementById('file');
-      const file = fileInput.files[0];
-      if (!file) return alert('請選擇圖片');
+async function upload() {
+  const fileInput = document.getElementById('file');
+  const file = fileInput.files[0];
+  if (!file) return alert('請選擇圖片');
 
-      const reader = new FileReader();
-      reader.onload = async function () {
-        const base64 = reader.result.split(',')[1];
-        const filenameInput = document.getElementById('filename').value.trim();
-        const description = document.getElementById('desc').value.trim();
-        const ext = file.name.split('.').pop();
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const name = filenameInput || file.name;
-        const path = `images/${year}/${month}/${name}`;
-        const metadataPath = `metadata/${year}/${month}/${name}.json`;
-        const token = localStorage.getItem(tokenKey);
+  const reader = new FileReader();
+  reader.onload = async function () {
+    const base64 = reader.result.split(',')[1];
+    const filenameInput = document.getElementById('filename').value.trim();
+    const description = document.getElementById('desc').value.trim();
 
-        if (!token) return alert("Token 遺失，請重新輸入");
+    // 取得原始副檔名 (小寫)
+    const originalExt = file.name.split('.').pop().toLowerCase();
 
-        // 上傳圖片
-        const uploadImage = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/${path}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            message: `upload ${name}`,
-            content: base64
-          })
-        });
-
-        if (!uploadImage.ok) {
-          alert('圖片上傳失敗，請檢查權限與 Token');
-          return;
-        }
-
-        // 上傳 metadata
-const metadata = {
-  filename: name,
-  description,
-  uploaded_at: new Date().toISOString()
-};
-
-await fetch(`https://api.github.com/repos/${username}/${repo}/contents/${metadataPath}`, {
-  method: 'PUT',
-  headers: {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    message: `add metadata for ${name}`,
-    content: btoa(unescape(encodeURIComponent(JSON.stringify(metadata, null, 2))))
-  })
-});
-
-        // 顯示結果
-        const cdnURL = `https://cdn.jsdelivr.net/gh/${username}/${repo}@${branch}/images/${year}/${month}/${name}`;
-        document.getElementById('result').innerHTML = `
-          <p>圖片上傳成功！</p>
-          <div class="urlbox"><strong>Markdown：</strong><br>![](${cdnURL})</div>
-          <img src="${cdnURL}" />
-        `;
-      };
-      reader.readAsDataURL(file);
+    // 取得檔名：使用者輸入優先，若無副檔名就加上原始副檔名
+    let rawName = filenameInput || file.name;
+    if (!rawName.includes('.')) {
+      rawName = `${rawName}.${originalExt}`;
     }
+
+    // 路徑
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+
+    const path = `images/${year}/${month}/${rawName}`;
+    const metadataPath = `metadata/${year}/${month}/${rawName}.json`;
+
+    const token = localStorage.getItem('github_token');
+    if (!token) return alert("Token 遺失，請重新輸入");
+
+    // 上傳圖片
+    const uploadImage = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/${path}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: `upload ${rawName}`,
+        content: base64
+      })
+    });
+
+    if (!uploadImage.ok) {
+      alert('圖片上傳失敗，請檢查權限與 Token');
+      return;
+    }
+
+    // 上傳 metadata
+    const metadata = {
+      filename: rawName,
+      description,
+      uploaded_at: new Date().toISOString()
+    };
+
+    await fetch(`https://api.github.com/repos/${username}/${repo}/contents/${metadataPath}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: `add metadata for ${rawName}`,
+        content: btoa(unescape(encodeURIComponent(JSON.stringify(metadata, null, 2))))
+      })
+    });
+
+    // 顯示結果（確保副檔名在 URL 中）
+    const cdnURL = `https://cdn.jsdelivr.net/gh/${username}/${repo}@${branch}/${path}`;
+
+    document.getElementById('result').innerHTML = `
+      <p>圖片上傳成功！</p>
+      <div class="urlbox"><strong>Markdown：</strong><br>![](${cdnURL})</div>
+      <img src="${cdnURL}" />
+    `;
+  };
+  reader.readAsDataURL(file);
+}
   </script>
 </body>
 </html>
